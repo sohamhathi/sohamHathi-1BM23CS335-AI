@@ -1,0 +1,85 @@
+
+print("\nStep 8: Agent reasoning about Wumpus location...")
+
+# Ask user if they want to input stench positions manually
+choice = input("Do you want to input stench positions manually? (y/n): ").strip().lower()
+
+stench_cells = []
+if choice == 'y':
+    n = int(input("How many cells have stench? "))
+    for i in range(n):
+        r, c = map(int, input(f"Enter stench cell #{i+1} (row col): ").split())
+        if 1 <= r <= GRID_SIZE and 1 <= c <= GRID_SIZE:
+            stench_cells.append((r, c))
+        else:
+            print(f"  Invalid position ({r},{c}) skipped.")
+else:
+    # Automatically detect stench cells from the world
+    for r in range(GRID_SIZE):
+        for c in range(GRID_SIZE):
+            if "S" in world[r][c]:  # "S" marks stench
+                stench_cells.append((r + 1, c + 1))  # 1-indexed
+
+print(f"Agent detects stench in these cells: {stench_cells}")
+
+# --- Step 8a: Agent hypothesizes Wumpus location ---
+from collections import Counter
+
+possible_wumpus = []
+
+def adjacent_cells(r, c):
+    """Return valid adjacent cells in 1-indexed grid."""
+    cells = []
+    for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+        nr, nc = r + dr, c + dc
+        if 1 <= nr <= GRID_SIZE and 1 <= nc <= GRID_SIZE:
+            cells.append((nr, nc))
+    return cells
+
+# Collect all candidate Wumpus cells from stenches
+for sr, sc in stench_cells:
+    for nr, nc in adjacent_cells(sr, sc):
+        possible_wumpus.append((nr, nc))
+
+# Count how often each cell appears; Wumpus is likely where all stenches intersect
+counter = Counter(possible_wumpus)
+wumpus_inferred = [cell for cell, count in counter.items() if count == len(stench_cells)]
+
+print(f"Agent infers possible Wumpus location(s): {wumpus_inferred}")
+
+# --- Step 8b: Agent "travels" to verify the Wumpus location logically ---
+print("\nAgent begins exploring to prove Wumpus location...")
+
+visited = set()
+frontier = [(1,1)]  # Assume agent starts at (1,1)
+
+while frontier:
+    cell = frontier.pop(0)
+    if cell in visited:
+        continue
+    visited.add(cell)
+    r, c = cell
+    # Sense stench
+    if (r, c) in stench_cells:
+        print(f"  At {cell}: detects stench!")
+    else:
+        print(f"  At {cell}: no stench.")
+
+    # Add unvisited adjacent cells
+    for nr, nc in adjacent_cells(r, c):
+        if (nr, nc) not in visited:
+            frontier.append((nr, nc))
+
+print("\nExploration complete. Agent uses logical deduction:")
+if wumpus_inferred:
+    print(f"  Wumpus is most likely at: {wumpus_inferred}")
+else:
+    print("  Could not determine Wumpus location with current stench info.")
+
+# --- Step 8c: Verification (for debugging only) ---
+actual_wumpus = get_positions("Wumpus (for verification only)")
+if all(cell in wumpus_inferred for cell in actual_wumpus):
+    print("Success! Agent logically infers Wumpus location correctly.")
+else:
+    print("Agent's inference does not fully match actual Wumpus location.")
+    print(f"Actual Wumpus: {actual_wumpus}")
